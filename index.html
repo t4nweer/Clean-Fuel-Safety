@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>T&I Fatigue & Focus Study</title>
+    <style>
+        body { font-family: sans-serif; background: #222; color: white; margin: 0; padding: 0; text-align: center; }
+        .container { max-width: 500px; margin: 0 auto; padding: 20px; }
+        .form-group { text-align: left; margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; color: #ccc; }
+        input, select, textarea { width: 100%; padding: 10px; box-sizing: border-box; border-radius: 5px; border: 1px solid #444; background: #333; color: white; font-size: 1rem; }
+        
+        #test-area { display: none; width: 100vw; height: 100vh; position: fixed; top: 0; left: 0; align-items: center; justify-content: center; font-size: 2.5rem; font-weight: bold; cursor: pointer; user-select: none; z-index: 1000; }
+        .waiting { background-color: #d32f2f; } /* Red */
+        .ready { background-color: #388e3c; }   /* Green */
+        
+        button { width: 100%; padding: 15px; font-size: 1.2rem; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 5px; font-weight: bold; margin-top: 10px; }
+        button:hover { background: #0056b3; }
+        #results { display: none; background: #111; padding: 30px; border-radius: 10px; margin-top: 20px; border: 2px solid #388e3c; }
+        .thank-you { font-size: 1.4rem; color: #4caf50; font-weight: bold; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+
+<div class="container" id="survey-screen">
+    <h2>T&I Safety Alertness Study</h2>
+    <p style="color: #aaa;">Please complete these details honestly before starting your 2-minute focus test.</p>
+    <hr style="border-color: #444; margin-bottom: 20px;">
+
+    <div class="form-group">
+        <label for="worker-id">Participant ID:</label>
+        <select id="worker-id">
+            <option value="Pilot test participant 1">Pilot test participant 1</option>
+            <option value="Pilot test participant 2">Pilot test participant 2</option>
+            <option value="Pilot test participant 3">Pilot test participant 3</option>
+            <option value="Pilot test participant 4">Pilot test participant 4</option>
+            <option value="Pilot test participant 5">Pilot test participant 5</option>
+            <option value="Pilot test participant 6">Pilot test participant 6</option>
+            <option value="Pilot test participant 7">Pilot test participant 7</option>
+            <option value="Pilot test participant 8">Pilot test participant 8</option>
+            <option value="Pilot test participant 9">Pilot test participant 9</option>
+            <option value="Pilot test participant 10">Pilot test participant 10</option>
+            <option value="Pilot test participant 11">Pilot test participant 11</option>
+            <option value="Pilot test participant 12">Pilot test participant 12</option>
+            <option value="Pilot test participant 13">Pilot test participant 13</option>
+            <option value="Pilot test participant 14">Pilot test participant 14</option>
+            <option value="Pilot test participant 15">Pilot test participant 15</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="shift">Current Shift:</label>
+        <select id="shift">
+            <option value="Day Shift">Day Shift (6 AM - 6 PM)</option>
+            <option value="Night Shift">Night Shift (6 PM - 6 AM)</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="caffeine">Time Since Last Caffeine Drink:</label>
+        <select id="caffeine">
+            <option value="None today">None today</option>
+            <option value="Less than 30 mins ago">&lt; 30 mins ago</option>
+            <option value="30 to 60 mins ago">30 - 60 mins ago</option>
+            <option value="1 to 3 hours ago">1 - 3 hours ago</option>
+            <option value="More than 3 hours ago">&gt; 3 hours ago</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="nicotine">Time Since Last Smoke/Nicotine Use:</label>
+        <select id="nicotine">
+            <option value="Non-user">I do not smoke/use nicotine</option>
+            <option value="Less than 15 mins ago">&lt; 15 mins ago</option>
+            <option value="15 to 45 mins ago">15 - 45 mins ago</option>
+            <option value="1 to 2 hours ago">1 - 2 hours ago</option>
+            <option value="More than 2 hours ago">&gt; 2 hours ago</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="comments">Any Comments (e.g., Extended shift, Hot weather, Feeling tired):</label>
+        <textarea id="comments" rows="3" placeholder="Optional comments..."></textarea>
+    </div>
+
+    <button id="start-btn">Start 2-Minute Test</button>
+</div>
+
+<div id="test-area" class="waiting">Wait for GREEN...</div>
+
+<div class="container" id="results">
+    <div class="thank-you">🎉 Thank you for participating! Your data helps make our site safer.</div>
+    <h3>Test Completed Successfully</h3>
+    <p id="summary" style="font-size: 1.1rem; line-height: 1.6; background: #222; padding: 15px; border-radius: 5px; text-align: left; border: 1px solid #333; max-height: 250px; overflow-y: auto;"></p>
+    <button id="whatsapp-btn" style="background: #25D366;">Send Report to Safety Officer</button>
+</div>
+
+<script>
+    let startTime, endTime, timeout;
+    let reactionTimes = [];
+    let l_date, l_time; 
+    let lapses = 0;
+    let isWaitingForGreen = false;
+    let testDuration = 120000; // Exactly 2 minutes
+    let studyTimer;
+
+    const surveyScreen = document.getElementById('survey-screen');
+    const testArea = document.getElementById('test-area');
+    const resultsDiv = document.getElementById('results');
+    const startBtn = document.getElementById('start-btn');
+
+    function startStudy() {
+        // Silently grab exact time stamp right at launch
+        const runStamp = new Date();
+        l_date = runStamp.toLocaleDateString();
+        l_time = runStamp.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+        surveyScreen.style.display = 'none';
+        testArea.style.display = 'flex';
+        
+        studyTimer = setTimeout(endStudy, testDuration);
+        prepareTrial();
+    }
+
+    function prepareTrial() {
+        testArea.className = 'waiting';
+        testArea.innerText = 'Wait for GREEN...';
+        isWaitingForGreen = false;
+        
+        let randomDelay = Math.random() * 3000 + 1500; // 1.5 to 4.5 seconds random delay
+        timeout = setTimeout(() => {
+            testArea.className = 'ready';
+            testArea.innerText = 'TAP NOW!';
+            startTime = Date.now();
+            isWaitingForGreen = true;
+        }, randomDelay);
+    }
+
+    testArea.addEventListener('touchstart', (e) => {
+        e.preventDefault(); 
+        handleTap();
+    });
+    testArea.addEventListener('mousedown', () => { handleTap(); });
+
+    function handleTap() {
+        if (testArea.style.display === 'none') return;
+
+        if (isWaitingForGreen) {
+            endTime = Date.now();
+            let rt = endTime - startTime;
+            reactionTimes.push(rt);
+            if (rt > 500) lapses++; 
+            isWaitingForGreen = false;
+            prepareTrial();
+        } else if (testArea.className === 'waiting') {
+            clearTimeout(timeout);
+            alert("False Start! Wait for the screen to turn green.");
+            prepareTrial();
+        }
+    }
+
+    function endStudy() {
+        clearTimeout(timeout);
+        testArea.style.display = 'none';
+        resultsDiv.style.display = 'block';
+        
+        let id = document.getElementById('worker-id').value;
+        let shift = document.getElementById('shift').value;
+        let caff = document.getElementById('caffeine').value;
+        let nic = document.getElementById('nicotine').value;
+        let comm = document.getElementById('comments').value || "None";
+        
+        let avg = reactionTimes.length > 0 ? Math.round(reactionTimes.reduce((a, b) => a + b, 0) / reactionTimes.length) : 0;
+        let rawListString = reactionTimes.length > 0 ? reactionTimes.join(", ") : "None";
+        
+        // Local presentation display output
+        let displayHtml = `
+            <strong>ID:</strong> ${id}<br>
+            <strong>Shift:</strong> ${shift}<br>
+            <strong>Date/Time (Logged):</strong> ${l_date} @ ${l_time}<br>
+            <strong>Caffeine:</strong> ${caff}<br>
+            <strong>Nicotine:</strong> ${nic}<br>
+            <strong>Avg Reaction:</strong> ${avg} ms<br>
+            <strong>Attention Lapses (&gt;500ms):</strong> ${lapses}<br>
+            <strong>Total Attempts:</strong> ${reactionTimes.length}<br>
+            <strong>Raw Inputs (ms):</strong> <span style="font-size:0.9rem; color:#ffa726; word-break: break-all;">[${rawListString}]</span><br>
+            <strong>Comments:</strong> ${comm}
+        `;
+        document.getElementById('summary').innerHTML = displayHtml;
+
+        // WhatsApp action handler
+        document.getElementById('whatsapp-btn').onclick = () => {
+            let msg = `⚠️ *T%26I Fatigue Study Report* ⚠️\n\n` +
+                      `👤 *ID:* ${id}\n` +
+                      `🔄 *Shift:* ${shift}\n` +
+                      `📅 *Timestamp:* ${l_date} @ ${l_time}\n` +
+                      `☕ *Caffeine:* ${caff}\n` +
+                      `🚬 *Nicotine:* ${nic}\n\n` +
+                      `📊 *RESULTS (2-Min PVT):*\n` +
+                      `⏱️ *Avg Response:* ${avg} ms\n` +
+                      `🚨 *Focus Lapses:* ${lapses}\n` +
+                      `🔄 *Total Trials:* ${reactionTimes.length}\n` +
+                      `🔢 *Raw Inputs (ms):* [${rawListString}]\n\n` +
+                      `💬 *Comments:* ${comm}`;
+            window.open(`https://wa.me/?text=${msg}`, '_blank');
+        };
+    }
+
+    startBtn.addEventListener('click', startStudy);
+</script>
+</body>
+</html>
